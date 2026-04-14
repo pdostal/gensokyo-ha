@@ -15,15 +15,19 @@ from .coordinator import GensokyoRadioCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-_CARD_URL = "/gensokyo_radio_card.js"
+_CARD_URL = "/gensokyo_radio/gensokyo-radio-card.js"
 _CARD_PATH = Path(__file__).parent / "gensokyo-radio-card.js"
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Register the Lovelace card as a static web resource (auto-loads in UI)."""
-    await hass.http.async_register_static_paths([
-        StaticPathConfig(_CARD_URL, str(_CARD_PATH), cache_headers=False)
-    ])
+    try:
+        await hass.http.async_register_static_paths([
+            StaticPathConfig(_CARD_URL, str(_CARD_PATH), cache_headers=False)
+        ])
+    except RuntimeError:
+        # Route already registered — harmless on integration reload
+        pass
     add_extra_js_url(hass, _CARD_URL)
     return True
 
