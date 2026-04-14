@@ -21,11 +21,9 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     ALBUM_ART_BASE_URL,
-    CONF_STREAM_QUALITY,
-    CONF_TARGET_PLAYER,
-    DEFAULT_STREAM_QUALITY,
+    DEFAULT_STREAM_URL,
     DOMAIN,
-    STREAM_URLS,
+    SONG_DETAIL_BASE_URL,
 )
 from .coordinator import GensokyoRadioCoordinator
 
@@ -37,45 +35,31 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Gensokyo Radio media player from a config entry."""
     coordinator: GensokyoRadioCoordinator = hass.data[DOMAIN][entry.entry_id]
-    target_player = entry.data.get(CONF_TARGET_PLAYER)
-    stream_quality = entry.data.get(CONF_STREAM_QUALITY, DEFAULT_STREAM_QUALITY)
-    async_add_entities([GensokyoRadioMediaPlayer(coordinator, target_player, stream_quality)])
+    async_add_entities([GensokyoRadioMediaPlayer(coordinator)])
 
 
 class GensokyoRadioMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
-    """Represents the currently playing track on Gensokyo Radio.
-
-    When a target_player is configured, the entity gains PLAY and STOP
-    support: pressing play sends the stream URL to the target media player;
-    pressing stop halts playback on that player.  Without a target player
-    the entity is read-only.
-    """
+    """Read-only media player that mirrors what is currently playing on Gensokyo Radio."""
 
     _attr_has_entity_name = True
     _attr_icon = "mdi:radio"
+    _attr_supported_features = MediaPlayerEntityFeature(0)
 
-    def __init__(
-        self,
-        coordinator: GensokyoRadioCoordinator,
-        target_player: str | None = None,
-        stream_quality: str = DEFAULT_STREAM_QUALITY,
-    ) -> None:
+    def __init__(self, coordinator: GensokyoRadioCoordinator) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{DOMAIN}_media_player"
         self._attr_name = "Gensokyo Radio"
-        self._target_player = target_player
-        self._stream_url = STREAM_URLS.get(stream_quality, STREAM_URLS[DEFAULT_STREAM_QUALITY])
         self._last_song_id: int | None = None
 
     async def async_added_to_hass(self) -> None:
-        """Stamp position timestamp immediately so progress bar works on boot."""
+        """Stamp position timestamp immediately so the progress bar works on boot."""
         await super().async_added_to_hass()
         self._attr_media_position_updated_at = self.coordinator.last_update_success_time
         self.async_write_ha_state()
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Mark position timestamp on every coordinator refresh and log song changes."""
+        """Mark position timestamp and log song changes on every coordinator refresh."""
         self._attr_media_position_updated_at = self.coordinator.last_update_success_time
         new_song_id = self._songdata.get("SONGID")
         if new_song_id is not None and new_song_id != self._last_song_id:
@@ -98,18 +82,12 @@ class GensokyoRadioMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
     # ------------------------------------------------------------------
 
     @property
-    def supported_features(self) -> MediaPlayerEntityFeature:
-        if self._target_player:
-            return MediaPlayerEntityFeature.PLAY | MediaPlayerEntityFeature.STOP
-        return MediaPlayerEntityFeature(0)
-
-    @property
     def state(self) -> MediaPlayerState:
         return MediaPlayerState.PLAYING
 
     @property
     def media_content_id(self) -> str:
-        return self._stream_url
+        return DEFAULT_STREAM_URL
 
     @property
     def media_content_type(self) -> MediaType:
@@ -149,44 +127,17 @@ class GensokyoRadioMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        attrs: dict = {
+        song_id = self._songdata.get("SONGID")
+        return {
             "rating": self._songdata.get("RATING"),
             "times_rated": self._songdata.get("TIMESRATED"),
             "year": self._songinfo.get("YEAR"),
-            "song_id": self._songdata.get("SONGID"),
+            "song_id": song_id,
             "album_id": self._songdata.get("ALBUMID"),
             "listeners": self._serverinfo.get("LISTENERS"),
             "circle_link": self._misc.get("CIRCLELINK"),
-            "stream_url": self._stream_url,
+            "song_url": f"{SONG_DETAIL_BASE_URL}{song_id}/" if song_id else None,
         }
-        if self._target_player:
-            attrs["target_player"] = self._target_player
-        return attrs
-
-    # ------------------------------------------------------------------
-    # Playback control (only active when target_player is configured)
-    # ------------------------------------------------------------------
-
-    async def async_media_play(self) -> None:
-        """Start playing the Gensokyo Radio stream on the target player."""
-        await self.hass.services.async_call(
-            "media_player",
-            "play_media",
-            {
-                "media_content_id": self._stream_url,
-                "media_content_type": "music",
-            },
-            target={"entity_id": self._target_player},
-        )
-
-    async def async_media_stop(self) -> None:
-        """Stop playback on the target player."""
-        await self.hass.services.async_call(
-            "media_player",
-            "media_stop",
-            {},
-            target={"entity_id": self._target_player},
-        )
 
     # ------------------------------------------------------------------
     # Helpers

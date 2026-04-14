@@ -1,6 +1,7 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+timeout = 30
 
 [tool.coverage.run]
 source = ["custom_components/gensokyo_radio"]
