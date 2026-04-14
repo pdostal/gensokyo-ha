@@ -142,7 +142,7 @@ def test_icon_is_radio(media_player):
 # media_position_updated_at
 # ------------------------------------------------------------------
 
-def test_media_position_updated_at_tracks_coordinator_timestamp(coordinator):
+def test_media_position_updated_at_tracks_coordinator_timestamp(coordinator, hass):
     """_handle_coordinator_update stamps _attr_media_position_updated_at from coordinator."""
     from datetime import datetime, timezone
 
@@ -150,6 +150,7 @@ def test_media_position_updated_at_tracks_coordinator_timestamp(coordinator):
     coordinator.last_update_success_time = fake_time
 
     player = GensokyoRadioMediaPlayer(coordinator)
+    player.hass = hass
     # Patch super()._handle_coordinator_update so we don't need a full platform setup
     with patch.object(
         type(player).__mro__[2],  # CoordinatorEntity
@@ -245,3 +246,67 @@ async def test_media_stop_calls_media_stop_on_target(media_player_with_target, h
         {},
         target={"entity_id": "media_player.living_room"},
     )
+
+
+# ------------------------------------------------------------------
+# Boot-time position stamping
+# ------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_async_added_to_hass_stamps_position_on_boot(coordinator):
+    """async_added_to_hass stamps _attr_media_position_updated_at from coordinator on boot."""
+    from datetime import datetime, timezone
+
+    fake_time = datetime(2026, 4, 14, 10, 0, 0, tzinfo=timezone.utc)
+    coordinator.last_update_success_time = fake_time
+
+    player = GensokyoRadioMediaPlayer(coordinator)
+
+    # Simulate adding to hass — super().async_added_to_hass needs hass set
+    with patch.object(type(player).__mro__[2], "async_added_to_hass", new_callable=AsyncMock):
+        with patch.object(player, "async_write_ha_state"):
+            await player.async_added_to_hass()
+
+    assert player._attr_media_position_updated_at == fake_time
+
+
+# ------------------------------------------------------------------
+# Logbook events
+# ------------------------------------------------------------------
+
+def test_song_change_fires_logbook_event(coordinator, hass):
+    """_handle_coordinator_update fires a logbook event when SONGID changes."""
+    from homeassistant.components.logbook import EVENT_LOGBOOK_ENTRY
+
+    player = GensokyoRadioMediaPlayer(coordinator)
+    player.hass = hass
+
+    fired_events = []
+    hass.bus.listen(EVENT_LOGBOOK_ENTRY, lambda e: fired_events.append(e))
+
+    # First update — _last_song_id starts as None so this always fires
+    with patch.object(type(player).__mro__[2], "_handle_coordinator_update"):
+        player._handle_coordinator_update()
+
+    assert len(fired_events) == 1
+    assert "月齢11.3のキャンドルマジック" in fired_events[0].data["message"]
+
+    # Second update with same SONGID — should NOT fire again
+    with patch.object(type(player).__mro__[2], "_handle_coordinator_update"):
+        player._handle_coordinator_update()
+
+    assert len(fired_events) == 1  # still 1
+
+    # Change SONGID in coordinator data
+    coordinator.data = {
+        **coordinator.data,
+        "SONGDATA": {**coordinator.data["SONGDATA"], "SONGID": 999999},
+        "SONGINFO": {**coordinator.data["SONGINFO"], "TITLE": "New Song", "ARTIST": "New Artist"},
+    }
+
+    with patch.object(type(player).__mro__[2], "_handle_coordinator_update"):
+        player._handle_coordinator_update()
+
+    assert len(fired_events) == 2
+    assert "New Song" in fired_events[1].data["message"]
+    assert "New Artist" in fired_events[1].data["message"]

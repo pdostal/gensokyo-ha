@@ -1,6 +1,13 @@
 """Gensokyo Radio media_player entity."""
 from __future__ import annotations
 
+from homeassistant.components.logbook import (
+    EVENT_LOGBOOK_ENTRY,
+    LOGBOOK_ENTRY_DOMAIN,
+    LOGBOOK_ENTRY_ENTITY_ID,
+    LOGBOOK_ENTRY_MESSAGE,
+    LOGBOOK_ENTRY_NAME,
+)
 from homeassistant.components.media_player import (
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
@@ -58,11 +65,32 @@ class GensokyoRadioMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
         self._attr_name = "Gensokyo Radio"
         self._target_player = target_player
         self._stream_url = STREAM_URLS.get(stream_quality, STREAM_URLS[DEFAULT_STREAM_QUALITY])
+        self._last_song_id: int | None = None
+
+    async def async_added_to_hass(self) -> None:
+        """Stamp position timestamp immediately so progress bar works on boot."""
+        await super().async_added_to_hass()
+        self._attr_media_position_updated_at = self.coordinator.last_update_success_time
+        self.async_write_ha_state()
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Mark position timestamp on every coordinator refresh."""
+        """Mark position timestamp on every coordinator refresh and log song changes."""
         self._attr_media_position_updated_at = self.coordinator.last_update_success_time
+        new_song_id = self._songdata.get("SONGID")
+        if new_song_id is not None and new_song_id != self._last_song_id:
+            self._last_song_id = new_song_id
+            title = self._songinfo.get("TITLE", "Unknown")
+            artist = self._songinfo.get("ARTIST", "Unknown")
+            self.hass.bus.async_fire(
+                EVENT_LOGBOOK_ENTRY,
+                {
+                    LOGBOOK_ENTRY_NAME: "Gensokyo Radio",
+                    LOGBOOK_ENTRY_MESSAGE: f"Now playing: {title} by {artist}",
+                    LOGBOOK_ENTRY_DOMAIN: DOMAIN,
+                    LOGBOOK_ENTRY_ENTITY_ID: self.entity_id,
+                },
+            )
         super()._handle_coordinator_update()
 
     # ------------------------------------------------------------------

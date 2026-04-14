@@ -310,7 +310,7 @@ class GensokyoRadioCard extends HTMLElement {
     `;
 
     if (showControls) {
-      this.shadowRoot.getElementById("btn-play").addEventListener("click", () => {
+      this.shadowRoot.getElementById("btn-play")?.addEventListener("click", () => {
         this._hass.callService("media_player", "play_media", {
           entity_id: targetEntityId,
           media_content_id: streamUrl,
@@ -318,7 +318,7 @@ class GensokyoRadioCard extends HTMLElement {
         });
       });
 
-      this.shadowRoot.getElementById("btn-stop").addEventListener("click", () => {
+      this.shadowRoot.getElementById("btn-stop")?.addEventListener("click", () => {
         this._hass.callService("media_player", "media_stop", {
           entity_id: targetEntityId,
         });

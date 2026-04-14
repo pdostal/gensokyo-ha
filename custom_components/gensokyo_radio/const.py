@@ -20,6 +20,10 @@ CONF_TARGET_PLAYER = "target_player"
 CONF_STREAM_QUALITY = "stream_quality"
 DEFAULT_STREAM_QUALITY = "1"
 
+# Service names
+SERVICE_PLAY = "play"
+SERVICE_STOP = "stop"
+
 # Stream URLs keyed by Gensokyo Radio stream number
 STREAM_URLS: dict[str, str] = {
     "1": "https://stream.gensokyoradio.net/1/",   # 128 kbps
