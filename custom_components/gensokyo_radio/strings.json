@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Gensokyo Radio",
+        "description": "Add Gensokyo Radio to Home Assistant. No configuration required — the integration will start tracking the currently playing track immediately."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Only one Gensokyo Radio integration is allowed."
+    }
+  }
+}
