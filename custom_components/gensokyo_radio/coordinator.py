@@ -5,9 +5,12 @@ import logging
 from typing import Any
 
 import aiohttp
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_call_later
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import (
+    TimestampDataUpdateCoordinator,
+    UpdateFailed,
+)
 
 from .const import (
     API_URL,
@@ -20,13 +23,15 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
-class GensokyoRadioCoordinator(DataUpdateCoordinator):
+class GensokyoRadioCoordinator(TimestampDataUpdateCoordinator):
     """Coordinator that polls only when the current track ends.
 
-    Instead of a fixed interval, each successful fetch reads
-    SONGTIMES.REMAINING from the API and schedules the next refresh for
-    (remaining + UPDATE_DELAY_AFTER_SONG) seconds later.  On error it
-    falls back to ERROR_RETRY_DELAY seconds.
+    After each successful fetch it reads SONGTIMES.REMAINING and schedules
+    the next refresh via async_call_later for (remaining + UPDATE_DELAY_AFTER_SONG)
+    seconds.  On error it falls back to ERROR_RETRY_DELAY seconds.
+
+    Inherits from TimestampDataUpdateCoordinator so that last_update_success_time
+    is always a valid datetime — required for media_position_updated_at.
     """
 
     def __init__(
@@ -59,7 +64,11 @@ class GensokyoRadioCoordinator(DataUpdateCoordinator):
                 resp.raise_for_status()
                 data = await resp.json(content_type=None)
         except Exception as err:
-            _LOGGER.warning("Gensokyo Radio API error: %s — retrying in %ss", err, ERROR_RETRY_DELAY)
+            _LOGGER.warning(
+                "Gensokyo Radio API error: %s — retrying in %ss",
+                err,
+                ERROR_RETRY_DELAY,
+            )
             self._schedule_next(ERROR_RETRY_DELAY)
             raise UpdateFailed(f"Error fetching Gensokyo Radio data: {err}") from err
         finally:
@@ -87,9 +96,13 @@ class GensokyoRadioCoordinator(DataUpdateCoordinator):
             self._unsub = None
         self._unsub = async_call_later(self.hass, delay, self._handle_wakeup)
 
+    @callback
     def _handle_wakeup(self, _now: Any) -> None:
         """Called by async_call_later; triggers the next data refresh."""
-        self.hass.async_create_task(self.async_refresh())
+        self.hass.async_create_background_task(
+            self.async_refresh(),
+            name=f"{DOMAIN}_scheduled_refresh",
+        )
 
     async def async_shutdown(self) -> None:
         """Cancel pending timer on integration unload."""

@@ -8,7 +8,7 @@ from homeassistant.components.media_player import (
     MediaType,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -45,6 +45,7 @@ class GensokyoRadioMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
     """
 
     _attr_has_entity_name = True
+    _attr_icon = "mdi:radio"
 
     def __init__(
         self,
@@ -57,6 +58,12 @@ class GensokyoRadioMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
         self._attr_name = "Gensokyo Radio"
         self._target_player = target_player
         self._stream_url = STREAM_URLS.get(stream_quality, STREAM_URLS[DEFAULT_STREAM_QUALITY])
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Mark position timestamp on every coordinator refresh."""
+        self._attr_media_position_updated_at = self.coordinator.last_update_success_time
+        super()._handle_coordinator_update()
 
     # ------------------------------------------------------------------
     # MediaPlayerEntity properties
@@ -104,11 +111,6 @@ class GensokyoRadioMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
     @property
     def media_position(self) -> int | None:
         return self._songtimes.get("PLAYED")
-
-    @property
-    def media_position_updated_at(self):
-        """Timestamp of the last coordinator refresh, used by HA to tick position."""
-        return self.coordinator.last_update_success_time if hasattr(self.coordinator, "last_update_success_time") else None
 
     @property
     def entity_picture(self) -> str | None:

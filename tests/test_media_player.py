@@ -133,6 +133,33 @@ def test_name(media_player):
     assert media_player.name == "Gensokyo Radio"
 
 
+def test_icon_is_radio(media_player):
+    """Entity has a radio MDI icon."""
+    assert media_player.icon == "mdi:radio"
+
+
+# ------------------------------------------------------------------
+# media_position_updated_at
+# ------------------------------------------------------------------
+
+def test_media_position_updated_at_tracks_coordinator_timestamp(coordinator):
+    """_handle_coordinator_update stamps _attr_media_position_updated_at from coordinator."""
+    from datetime import datetime, timezone
+
+    fake_time = datetime(2026, 4, 14, 12, 0, 0, tzinfo=timezone.utc)
+    coordinator.last_update_success_time = fake_time
+
+    player = GensokyoRadioMediaPlayer(coordinator)
+    # Patch super()._handle_coordinator_update so we don't need a full platform setup
+    with patch.object(
+        type(player).__mro__[2],  # CoordinatorEntity
+        "_handle_coordinator_update",
+    ):
+        player._handle_coordinator_update()
+
+    assert player._attr_media_position_updated_at == fake_time
+
+
 # ------------------------------------------------------------------
 # Stream URL / media content
 # ------------------------------------------------------------------

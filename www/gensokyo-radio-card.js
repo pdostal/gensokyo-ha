@@ -290,12 +290,10 @@ class GensokyoRadioCard extends HTMLElement {
 
         ${showControls ? `
         <div class="controls">
-          <button class="ctrl-btn btn-play${isTargetPlaying ? " active" : ""}" id="btn-play" title="Play on linked speaker">
-            ▶ Play
-          </button>
-          <button class="ctrl-btn btn-stop" id="btn-stop" title="Stop linked speaker">
-            ⏹ Stop
-          </button>
+          ${isTargetPlaying
+            ? `<button class="ctrl-btn btn-stop" id="btn-stop" title="Stop linked speaker">⏹ Stop</button>`
+            : `<button class="ctrl-btn btn-play" id="btn-play" title="Play on linked speaker">▶ Play</button>`
+          }
         </div>
         ` : ""}
 

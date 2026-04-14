@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, call
+from datetime import datetime, timezone
 from aioresponses import aioresponses
 
 from custom_components.gensokyo_radio.const import (
@@ -147,3 +148,23 @@ async def test_async_shutdown_cancels_pending_timer(hass, mock_api_response):
             await coordinator.async_shutdown()
 
     mock_unsub.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_last_update_success_time_is_set_after_refresh(hass, mock_api_response):
+    """TimestampDataUpdateCoordinator sets last_update_success_time after a successful fetch."""
+    with aioresponses() as m:
+        m.get(API_URL, payload=mock_api_response)
+        with patch("custom_components.gensokyo_radio.coordinator.async_call_later"):
+            coordinator = GensokyoRadioCoordinator(hass)
+            await coordinator.async_refresh()
+
+    assert coordinator.last_update_success_time is not None
+    assert isinstance(coordinator.last_update_success_time, datetime)
+
+
+def test_handle_wakeup_is_callback(hass):
+    """_handle_wakeup must be decorated with @callback for HA safety."""
+    from homeassistant.core import is_callback
+    coordinator = GensokyoRadioCoordinator(hass)
+    assert is_callback(coordinator._handle_wakeup)
