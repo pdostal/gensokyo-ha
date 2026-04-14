@@ -14,3 +14,16 @@ ERROR_RETRY_DELAY = 30
 
 # Request timeout (seconds)
 REQUEST_TIMEOUT = 10
+
+# Config entry keys
+CONF_TARGET_PLAYER = "target_player"
+CONF_STREAM_QUALITY = "stream_quality"
+DEFAULT_STREAM_QUALITY = "1"
+
+# Stream URLs keyed by Gensokyo Radio stream number
+STREAM_URLS: dict[str, str] = {
+    "1": "https://stream.gensokyoradio.net/1/",   # 128 kbps
+    "2": "https://stream.gensokyoradio.net/2/",   # 64 kbps
+    "3": "https://stream.gensokyoradio.net/3/",   # 256 kbps
+    "4": "https://stream.gensokyoradio.net/4/",   # 1000 kbps / lossless
+}

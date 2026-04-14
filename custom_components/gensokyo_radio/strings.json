@@ -3,7 +3,11 @@
     "step": {
       "user": {
         "title": "Gensokyo Radio",
-        "description": "Add Gensokyo Radio to Home Assistant. No configuration required — the integration will start tracking the currently playing track immediately."
+        "description": "Add Gensokyo Radio to Home Assistant. Optionally select a media player to control (e.g. a smart speaker or Chromecast) — pressing play on the card will start the stream on that device.",
+        "data": {
+          "target_player": "Target media player (optional)",
+          "stream_quality": "Stream quality"
+        }
       }
     },
     "abort": {

@@ -2,13 +2,21 @@
 from __future__ import annotations
 
 import pytest
-from unittest.mock import patch, MagicMock
-from homeassistant.components.media_player import MediaPlayerState
+from unittest.mock import patch, MagicMock, AsyncMock
+from homeassistant.components.media_player import (
+    MediaPlayerEntityFeature,
+    MediaPlayerState,
+    MediaType,
+)
 from homeassistant.core import HomeAssistant
 
 from custom_components.gensokyo_radio.const import (
     ALBUM_ART_BASE_URL,
+    CONF_STREAM_QUALITY,
+    CONF_TARGET_PLAYER,
+    DEFAULT_STREAM_QUALITY,
     DOMAIN,
+    STREAM_URLS,
 )
 from custom_components.gensokyo_radio.coordinator import GensokyoRadioCoordinator
 from custom_components.gensokyo_radio.media_player import GensokyoRadioMediaPlayer
@@ -24,9 +32,24 @@ def coordinator(hass, mock_api_response):
 
 @pytest.fixture
 def media_player(coordinator):
-    """Return a media player entity with coordinator data."""
+    """Return a read-only media player entity (no target player)."""
     return GensokyoRadioMediaPlayer(coordinator)
 
+
+@pytest.fixture
+def media_player_with_target(coordinator, hass):
+    """Return a media player entity with a target speaker configured."""
+    player = GensokyoRadioMediaPlayer(
+        coordinator,
+        target_player="media_player.living_room",
+    )
+    player.hass = hass
+    return player
+
+
+# ------------------------------------------------------------------
+# Basic state
+# ------------------------------------------------------------------
 
 def test_state_is_playing(media_player):
     """Media player is always in PLAYING state (it's a radio stream)."""
@@ -100,11 +123,6 @@ def test_extra_attributes_contain_song_metadata(media_player):
     assert attrs["album_id"] == 10976
 
 
-def test_supported_features_zero(media_player):
-    """No media controls — it's a read-only radio stream."""
-    assert media_player.supported_features == 0
-
-
 def test_unique_id(media_player):
     """Entity has a stable unique_id."""
     assert media_player.unique_id == f"{DOMAIN}_media_player"
@@ -113,3 +131,90 @@ def test_unique_id(media_player):
 def test_name(media_player):
     """Entity name is 'Gensokyo Radio'."""
     assert media_player.name == "Gensokyo Radio"
+
+
+# ------------------------------------------------------------------
+# Stream URL / media content
+# ------------------------------------------------------------------
+
+def test_media_content_id_default_stream(media_player):
+    """Default media_content_id points to stream 1 (128 kbps)."""
+    assert media_player.media_content_id == STREAM_URLS[DEFAULT_STREAM_QUALITY]
+
+
+def test_media_content_id_respects_quality(coordinator):
+    """Stream URL reflects the configured stream quality."""
+    player = GensokyoRadioMediaPlayer(coordinator, stream_quality="4")
+    assert player.media_content_id == STREAM_URLS["4"]
+
+
+def test_media_content_type_is_music(media_player):
+    """media_content_type is MUSIC."""
+    assert media_player.media_content_type == MediaType.MUSIC
+
+
+def test_extra_attributes_contain_stream_url(media_player):
+    """extra_state_attributes exposes the stream_url."""
+    assert "stream_url" in media_player.extra_state_attributes
+    assert media_player.extra_state_attributes["stream_url"].startswith("https://stream.gensokyoradio.net/")
+
+
+# ------------------------------------------------------------------
+# Supported features
+# ------------------------------------------------------------------
+
+def test_supported_features_zero_without_target(media_player):
+    """No target player → no supported features."""
+    assert media_player.supported_features == 0
+
+
+def test_supported_features_play_stop_with_target(coordinator):
+    """With a target player, PLAY and STOP are supported."""
+    player = GensokyoRadioMediaPlayer(coordinator, target_player="media_player.speaker")
+    assert player.supported_features & MediaPlayerEntityFeature.PLAY
+    assert player.supported_features & MediaPlayerEntityFeature.STOP
+
+
+def test_target_player_exposed_in_attributes(media_player_with_target):
+    """target_player entity_id is exposed as an extra attribute."""
+    assert media_player_with_target.extra_state_attributes["target_player"] == "media_player.living_room"
+
+
+def test_target_player_not_in_attributes_when_unset(media_player):
+    """target_player key is absent when no target is configured."""
+    assert "target_player" not in media_player.extra_state_attributes
+
+
+# ------------------------------------------------------------------
+# Play / stop delegation
+# ------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_media_play_calls_play_media_on_target(media_player_with_target, hass):
+    """async_media_play sends play_media to the configured target player."""
+    with patch("homeassistant.core.ServiceRegistry.async_call", new_callable=AsyncMock) as mock_call:
+        await media_player_with_target.async_media_play()
+
+    mock_call.assert_called_once_with(
+        "media_player",
+        "play_media",
+        {
+            "media_content_id": media_player_with_target.media_content_id,
+            "media_content_type": "music",
+        },
+        target={"entity_id": "media_player.living_room"},
+    )
+
+
+@pytest.mark.asyncio
+async def test_media_stop_calls_media_stop_on_target(media_player_with_target, hass):
+    """async_media_stop sends media_stop to the configured target player."""
+    with patch("homeassistant.core.ServiceRegistry.async_call", new_callable=AsyncMock) as mock_call:
+        await media_player_with_target.async_media_stop()
+
+    mock_call.assert_called_once_with(
+        "media_player",
+        "media_stop",
+        {},
+        target={"entity_id": "media_player.living_room"},
+    )

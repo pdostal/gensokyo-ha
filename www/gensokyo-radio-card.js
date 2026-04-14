@@ -4,6 +4,9 @@
  * Displays the currently playing track on Gensokyo Radio with album art,
  * animated progress bar, rating, and listener count.
  *
+ * When the integration is configured with a target media player, the card
+ * also shows Play / Stop buttons that control that player.
+ *
  * Usage:
  *   type: custom:gensokyo-radio-card
  *   entity: media_player.gensokyo_radio
@@ -17,6 +20,8 @@ class GensokyoRadioCard extends HTMLElement {
     this._positionBase = null;
     this._positionBaseTime = null;
     this._duration = null;
+    this._lastSongId = null;
+    this._lastTargetState = undefined;
   }
 
   // ------------------------------------------------------------------ //
@@ -41,15 +46,19 @@ class GensokyoRadioCard extends HTMLElement {
     }
 
     const attrs = state.attributes;
+    const songId = attrs.song_id;
+    const targetEntityId = attrs.target_player;
+    const targetState = targetEntityId
+      ? (hass.states[targetEntityId]?.state ?? "idle")
+      : null;
 
-    // Only re-render the shell when song changes (avoid flicker)
-    const songId = (attrs.extra_state_attributes || {}).song_id || attrs.song_id;
-    if (songId !== this._lastSongId) {
+    // Re-render when song changes OR target player play/stop state flips
+    if (songId !== this._lastSongId || targetState !== this._lastTargetState) {
       this._lastSongId = songId;
-      this._render(state);
+      this._lastTargetState = targetState;
+      this._render(state, targetEntityId, targetState);
     }
 
-    // Always update position tracking
     this._syncPosition(attrs);
   }
 
@@ -65,17 +74,21 @@ class GensokyoRadioCard extends HTMLElement {
   // Rendering
   // ------------------------------------------------------------------ //
 
-  _render(state) {
+  _render(state, targetEntityId, targetState) {
     const attrs = state.attributes;
     const title = attrs.media_title || "Unknown Track";
     const artist = attrs.media_artist || "";
     const album = attrs.media_album_name || "";
     const circle = attrs.media_album_artist || "";
-    const year = attrs.year || attrs.extra_state_attributes?.year || "";
-    const rating = attrs.rating || attrs.extra_state_attributes?.rating || "";
-    const timesRated = attrs.times_rated || attrs.extra_state_attributes?.times_rated || 0;
-    const listeners = attrs.listeners || attrs.extra_state_attributes?.listeners || 0;
-    const albumArt = attrs.entity_picture || state.attributes.entity_picture || "";
+    const year = attrs.year || "";
+    const rating = attrs.rating || "";
+    const timesRated = attrs.times_rated || 0;
+    const listeners = attrs.listeners || 0;
+    const albumArt = attrs.entity_picture || "";
+    const streamUrl = attrs.stream_url || "";
+
+    const isTargetPlaying = targetState === "playing";
+    const showControls = !!targetEntityId;
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -101,7 +114,7 @@ class GensokyoRadioCard extends HTMLElement {
         .art-wrapper {
           position: relative;
           width: 100%;
-          padding-top: 56.25%; /* 16:9 */
+          padding-top: 56.25%;
           background: #0d0d1a;
           overflow: hidden;
         }
@@ -136,10 +149,7 @@ class GensokyoRadioCard extends HTMLElement {
           gap: 4px;
         }
 
-        .badge::before {
-          content: "👥";
-          font-size: 11px;
-        }
+        .badge::before { content: "👥"; font-size: 11px; }
 
         .info {
           padding: 14px 16px 6px;
@@ -182,16 +192,50 @@ class GensokyoRadioCard extends HTMLElement {
           color: var(--text-secondary);
         }
 
-        .rating {
+        .rating { display: flex; align-items: center; gap: 4px; }
+        .stars { color: #f0c040; letter-spacing: 1px; }
+
+        .controls {
           display: flex;
           align-items: center;
-          gap: 4px;
+          justify-content: center;
+          gap: 12px;
+          padding: 8px 16px 4px;
         }
 
-        .stars {
-          color: #f0c040;
-          letter-spacing: 1px;
+        .ctrl-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 7px 18px;
+          border-radius: 20px;
+          border: none;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 500;
+          transition: opacity 0.15s, transform 0.1s;
+          outline: none;
         }
+
+        .ctrl-btn:active { transform: scale(0.95); }
+
+        .btn-play {
+          background: var(--accent);
+          color: var(--card-bg, #1c1c2e);
+        }
+
+        .btn-play.active {
+          opacity: 0.6;
+          cursor: default;
+        }
+
+        .btn-stop {
+          background: rgba(255,255,255,0.08);
+          color: var(--text-secondary);
+          border: 1px solid rgba(255,255,255,0.12);
+        }
+
+        .btn-stop:hover { background: rgba(255,80,80,0.18); color: #ff6060; }
 
         .progress-container {
           padding: 4px 16px 14px;
@@ -202,7 +246,6 @@ class GensokyoRadioCard extends HTMLElement {
           background: var(--progress-bg);
           border-radius: 2px;
           overflow: hidden;
-          position: relative;
         }
 
         .progress-fill {
@@ -245,6 +288,17 @@ class GensokyoRadioCard extends HTMLElement {
           <div>Gensokyo Radio</div>
         </div>
 
+        ${showControls ? `
+        <div class="controls">
+          <button class="ctrl-btn btn-play${isTargetPlaying ? " active" : ""}" id="btn-play" title="Play on linked speaker">
+            ▶ Play
+          </button>
+          <button class="ctrl-btn btn-stop" id="btn-stop" title="Stop linked speaker">
+            ⏹ Stop
+          </button>
+        </div>
+        ` : ""}
+
         <div class="progress-container">
           <div class="progress-bar">
             <div class="progress-fill" id="gensokyo-progress"></div>
@@ -256,6 +310,22 @@ class GensokyoRadioCard extends HTMLElement {
         </div>
       </ha-card>
     `;
+
+    if (showControls) {
+      this.shadowRoot.getElementById("btn-play").addEventListener("click", () => {
+        this._hass.callService("media_player", "play_media", {
+          entity_id: targetEntityId,
+          media_content_id: streamUrl,
+          media_content_type: "music",
+        });
+      });
+
+      this.shadowRoot.getElementById("btn-stop").addEventListener("click", () => {
+        this._hass.callService("media_player", "media_stop", {
+          entity_id: targetEntityId,
+        });
+      });
+    }
 
     this._syncPosition(state.attributes);
     this._startProgressTimer();
@@ -351,7 +421,7 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "gensokyo-radio-card",
   name: "Gensokyo Radio Card",
-  description: "Displays the currently playing track on Gensokyo Radio with album art and animated progress.",
+  description: "Displays the currently playing track on Gensokyo Radio with album art, animated progress, and optional speaker control.",
   preview: true,
   documentationURL: "https://github.com/pdostal/gensokyo-ha",
 });
