@@ -2,7 +2,7 @@
 
 A HACS-compatible Home Assistant integration for [Gensokyo Radio](https://gensokyoradio.net/), the Touhou music internet radio station.
 
-Tracks the currently playing song and exposes it as a `media_player` entity. Includes a custom Lovelace card with album art, animated progress bar, rating, and listener count.
+Tracks the currently playing song and exposes it as a `media_player` entity. Includes a compact Lovelace card with album art, animated progress bar, rating, and listener count. **The card is bundled with the integration and loads automatically — no manual setup needed.**
 
 **Smart polling**: the integration only hits the API once per song — it reads `SONGTIMES.REMAINING` from each response and schedules the next fetch for exactly that many seconds later (+ 2 seconds buffer). No wasted requests.
 
@@ -12,8 +12,11 @@ Tracks the currently playing song and exposes it as a `media_player` entity. Inc
 
 - `media_player` entity with title, artist, album, circle, duration, and position
 - Album art served directly from Gensokyo Radio's CDN
-- Extra attributes: rating, times rated, year, song ID, album ID, listener count
-- Custom Lovelace card with animated progress bar and star rating
+- Extra attributes: rating, times rated, year, song ID, album ID, listener count, song URL
+- Custom Lovelace card — compact layout, animated progress bar, star rating
+- Click the card to open the song detail page on gensokyoradio.net
+- Bundled card auto-loads on every HA page — no manual resource configuration
+- Song changes logged in the HA activity log
 - Smart per-song polling — zero unnecessary API calls
 - HACS-importable
 
@@ -47,30 +50,16 @@ A `media_player.gensokyo_radio` entity will appear immediately.
 
 ## Lovelace Card
 
-### Installation
+The card is bundled with the integration and loads automatically — no manual resource setup needed.
 
-Copy `www/gensokyo-radio-card.js` to your HA `config/www/` directory, then add it as a resource:
-
-**Settings → Dashboards → ⋮ → Manage resources → Add**
-```
-URL:  /local/gensokyo-radio-card.js
-Type: JavaScript module
-```
-
-Or add to `configuration.yaml`:
-```yaml
-lovelace:
-  resources:
-    - url: /local/gensokyo-radio-card.js
-      type: module
-```
-
-### Card configuration
+After restarting Home Assistant, add the card to any dashboard:
 
 ```yaml
 type: custom:gensokyo-radio-card
 entity: media_player.gensokyo_radio
 ```
+
+Click anywhere on the card to open the song detail page on gensokyoradio.net.
 
 ---
 
@@ -91,6 +80,7 @@ entity: media_player.gensokyo_radio
 | `song_id` | Gensokyo Radio song ID |
 | `album_id` | Gensokyo Radio album ID |
 | `listeners` | Current listener count |
+| `song_url` | Link to song detail page on gensokyoradio.net |
 
 ---
 
