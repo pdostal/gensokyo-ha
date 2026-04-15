@@ -2,10 +2,7 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
-from homeassistant.components.frontend import add_extra_js_url
-from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -14,22 +11,6 @@ from .const import DOMAIN, PLATFORMS
 from .coordinator import GensokyoRadioCoordinator
 
 _LOGGER = logging.getLogger(__name__)
-
-_CARD_URL = "/gensokyo_radio/gensokyo-radio-card.js"
-_CARD_PATH = Path(__file__).parent / "gensokyo-radio-card.js"
-
-
-async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Register the Lovelace card as a static web resource (auto-loads in UI)."""
-    try:
-        await hass.http.async_register_static_paths([
-            StaticPathConfig(_CARD_URL, str(_CARD_PATH), cache_headers=False)
-        ])
-    except RuntimeError:
-        # Route already registered — harmless on integration reload
-        pass
-    add_extra_js_url(hass, _CARD_URL)
-    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
