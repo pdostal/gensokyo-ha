@@ -40,11 +40,7 @@ The card is a separate HACS package at **[pdostal/gensokyo-ha-card](https://gith
 ### Manual installation (no HACS)
 
 1. Copy `custom_components/gensokyo_radio/` into your HA `config/custom_components/` directory
-2. Download `gensokyo-radio-card.js` from [gensokyo-ha-card releases](https://github.com/pdostal/gensokyo-ha-card/releases) into your HA `config/www/` directory
-3. Add the resource in **Settings → Dashboards → Resources**:
-   - URL: `/local/gensokyo-radio-card.js`
-   - Type: **JavaScript module**
-4. Restart Home Assistant
+2. Restart Home Assistant
 
 ---
 
