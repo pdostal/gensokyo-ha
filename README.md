@@ -2,42 +2,31 @@
 
 A HACS-compatible Home Assistant integration for [Gensokyo Radio](https://gensokyoradio.net/), the Touhou music internet radio station.
 
-Tracks the currently playing song and exposes it as a `media_player` entity. Includes a Lovelace card with album art, animated progress bar, rating, listener count, and optional play/stop controls for a linked speaker.
+Exposes the currently playing track as a `media_player` entity. For a dashboard card, see **[pdostal/gensokyo-ha-card](https://github.com/pdostal/gensokyo-ha-card)**.
 
-**Smart polling**: the integration only hits the API once per song — it reads `SONGTIMES.REMAINING` from each response and schedules the next fetch for exactly that many seconds later (+ 2 seconds buffer). No wasted requests.
+**Smart polling**: reads `SONGTIMES.REMAINING` from each API response and schedules the next fetch for exactly that many seconds later — one API call per song, no wasted requests.
 
 ---
 
 ## Features
 
-- `media_player` entity with title, artist, album, circle, duration, and position
-- Album art served directly from Gensokyo Radio's CDN
-- Extra attributes: rating, times rated, year, song ID, album ID, listener count, stream URL, song URL
-- Custom Lovelace card — hero album art layout, animated progress bar, elapsed/duration time, star rating
-- Optional play/stop controls on the card for a linked speaker
+- `media_player` entity with title, artist, album, circle, duration, and live position
+- Album art from Gensokyo Radio's CDN
+- Extra state attributes: rating, times rated, year, song ID, album ID, listener count, stream URL, song URL, circle link
 - Song changes logged in the HA activity log
 - Smart per-song polling — zero unnecessary API calls
-- HACS-compatible (integration + dashboard card from the same repo)
 
 ---
 
 ## Installation
 
-### Step 1 — Integration (Python backend)
+### Via HACS (recommended)
 
-1. Open HACS → **Integrations** → ⋮ → **Custom repositories**
+1. Open **HACS → Integrations** → ⋮ → **Custom repositories**
 2. Add `https://github.com/pdostal/gensokyo-ha` with category **Integration**
 3. Install **Gensokyo Radio** and restart Home Assistant
 
-### Step 2 — Dashboard card (Lovelace frontend)
-
-The card is a separate HACS package at **[pdostal/gensokyo-ha-card](https://github.com/pdostal/gensokyo-ha-card)**.
-
-1. Open HACS → **Frontend** → ⋮ → **Custom repositories**
-2. Add `https://github.com/pdostal/gensokyo-ha-card` with category **Dashboard**
-3. Install **Gensokyo Radio Card** — no restart needed
-
-### Manual installation (no HACS)
+### Manual
 
 1. Copy `custom_components/gensokyo_radio/` into your HA `config/custom_components/` directory
 2. Restart Home Assistant
@@ -47,27 +36,15 @@ The card is a separate HACS package at **[pdostal/gensokyo-ha-card](https://gith
 ## Setup
 
 1. Go to **Settings → Devices & Services → Add Integration**
-2. Search for **Gensokyo Radio**
-3. Click through — no configuration required
+2. Search for **Gensokyo Radio** and click through — no configuration required
 
-A `media_player.gensokyo_radio` entity will appear immediately.
+A `media_player.gensokyo_radio` entity appears immediately.
 
 ---
 
-## Lovelace Card
+## Dashboard Card
 
-After installing the dashboard card via HACS, add it to any dashboard from **Edit → Add card** — search for *Gensokyo Radio* — or add it manually in YAML:
-
-```yaml
-type: custom:gensokyo-radio-card
-entity: media_player.gensokyo_radio
-```
-
-The card shows album art, track info, star rating, listener count, and an animated progress bar with elapsed/duration times.
-
-### Optional: linked speaker controls
-
-Set a `target_player` attribute on the entity (requires custom options flow — coming soon) to display Play/Stop buttons that control a real speaker in your home.
+Install the companion card from **[pdostal/gensokyo-ha-card](https://github.com/pdostal/gensokyo-ha-card)** to display the currently playing track on your dashboard.
 
 ---
 
@@ -82,25 +59,22 @@ Set a `target_player` attribute on the entity (requires custom options flow — 
 | `media_duration` | Track duration in seconds |
 | `media_position` | Elapsed time in seconds |
 | `entity_picture` | Album art URL |
-| `rating` | Community rating (e.g. `4.36`) |
-| `times_rated` | Number of ratings |
+| `rating` | Community rating (0–5) |
+| `times_rated` | Number of community ratings |
 | `year` | Release year |
 | `song_id` | Gensokyo Radio song ID |
 | `album_id` | Gensokyo Radio album ID |
-| `listeners` | Current listener count |
+| `listeners` | Current stream listener count |
 | `stream_url` | Audio stream URL |
-| `song_url` | Link to song detail page on gensokyoradio.net |
-| `circle_link` | Link to circle/label page on gensokyoradio.net |
+| `song_url` | Song detail page on gensokyoradio.net |
+| `circle_link` | Circle / label page on gensokyoradio.net |
 
 ---
 
 ## Development
 
 ```bash
-# Install test dependencies
 pip install -r requirements_test.txt
-
-# Run tests
 pytest tests/ -v
 ```
 
