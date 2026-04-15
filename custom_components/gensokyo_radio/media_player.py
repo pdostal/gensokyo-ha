@@ -137,6 +137,7 @@ class GensokyoRadioMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
             "listeners": self._serverinfo.get("LISTENERS"),
             "circle_link": self._misc.get("CIRCLELINK"),
             "song_url": f"{SONG_DETAIL_BASE_URL}{song_id}/" if song_id else None,
+            "stream_url": DEFAULT_STREAM_URL,
         }
 
     # ------------------------------------------------------------------
