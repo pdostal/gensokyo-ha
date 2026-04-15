@@ -23,8 +23,6 @@ Tracks the currently playing song and exposes it as a `media_player` entity. Inc
 
 ## Installation
 
-Both the **integration** and the **card** are in this repo. Install them separately in HACS.
-
 ### Step 1 — Integration (Python backend)
 
 1. Open HACS → **Integrations** → ⋮ → **Custom repositories**
@@ -33,14 +31,16 @@ Both the **integration** and the **card** are in this repo. Install them separat
 
 ### Step 2 — Dashboard card (Lovelace frontend)
 
+The card is a separate HACS package at **[pdostal/gensokyo-ha-card](https://github.com/pdostal/gensokyo-ha-card)**.
+
 1. Open HACS → **Frontend** → ⋮ → **Custom repositories**
-2. Add `https://github.com/pdostal/gensokyo-ha` with category **Dashboard**
-3. Install **Gensokyo Radio** — no restart needed
+2. Add `https://github.com/pdostal/gensokyo-ha-card` with category **Dashboard**
+3. Install **Gensokyo Radio Card** — no restart needed
 
 ### Manual installation (no HACS)
 
 1. Copy `custom_components/gensokyo_radio/` into your HA `config/custom_components/` directory
-2. Copy `gensokyo-radio-card.js` into your HA `config/www/` directory
+2. Download `gensokyo-radio-card.js` from [gensokyo-ha-card releases](https://github.com/pdostal/gensokyo-ha-card/releases) into your HA `config/www/` directory
 3. Add the resource in **Settings → Dashboards → Resources**:
    - URL: `/local/gensokyo-radio-card.js`
    - Type: **JavaScript module**
