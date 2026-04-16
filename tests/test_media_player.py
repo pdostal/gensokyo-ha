@@ -1,4 +1,5 @@
 """Tests for GensokyoRadioMediaPlayer entity."""
+
 from __future__ import annotations
 
 import pytest
@@ -37,6 +38,7 @@ def media_player(coordinator):
 # Basic state
 # ------------------------------------------------------------------
 
+
 def test_state_is_playing(media_player):
     assert media_player.state == MediaPlayerState.PLAYING
 
@@ -59,6 +61,17 @@ def test_media_album_artist(media_player):
 
 def test_media_duration(media_player):
     assert media_player.media_duration == 394
+
+
+def test_media_duration_defaults_to_one_minute_when_missing(coordinator):
+    coordinator.data = {
+        **coordinator.data,
+        "SONGTIMES": {
+            k: v for k, v in coordinator.data["SONGTIMES"].items() if k != "DURATION"
+        },
+    }
+
+    assert GensokyoRadioMediaPlayer(coordinator).media_duration == 60
 
 
 def test_media_position(media_player):
@@ -128,6 +141,7 @@ def test_media_content_type_is_music(media_player):
 # media_position_updated_at
 # ------------------------------------------------------------------
 
+
 def test_media_position_updated_at_tracks_coordinator_timestamp(coordinator, hass):
     from datetime import datetime, timezone
 
@@ -146,6 +160,7 @@ def test_media_position_updated_at_tracks_coordinator_timestamp(coordinator, has
 # Boot-time position stamping
 # ------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_async_added_to_hass_stamps_position_on_boot(coordinator):
     from datetime import datetime, timezone
@@ -154,7 +169,9 @@ async def test_async_added_to_hass_stamps_position_on_boot(coordinator):
     coordinator.last_update_success_time = fake_time
 
     player = GensokyoRadioMediaPlayer(coordinator)
-    with patch.object(type(player).__mro__[2], "async_added_to_hass", new_callable=AsyncMock):
+    with patch.object(
+        type(player).__mro__[2], "async_added_to_hass", new_callable=AsyncMock
+    ):
         with patch.object(player, "async_write_ha_state"):
             await player.async_added_to_hass()
 
@@ -164,6 +181,7 @@ async def test_async_added_to_hass_stamps_position_on_boot(coordinator):
 # ------------------------------------------------------------------
 # Logbook events
 # ------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_song_change_fires_logbook_event(coordinator, hass):
@@ -192,7 +210,11 @@ async def test_song_change_fires_logbook_event(coordinator, hass):
     coordinator.data = {
         **coordinator.data,
         "SONGDATA": {**coordinator.data["SONGDATA"], "SONGID": 999},
-        "SONGINFO": {**coordinator.data["SONGINFO"], "TITLE": "New Song", "ARTIST": "DJ Test"},
+        "SONGINFO": {
+            **coordinator.data["SONGINFO"],
+            "TITLE": "New Song",
+            "ARTIST": "DJ Test",
+        },
     }
     with patch.object(type(player).__mro__[2], "_handle_coordinator_update"):
         player._handle_coordinator_update()

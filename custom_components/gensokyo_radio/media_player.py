@@ -1,4 +1,5 @@
 """Gensokyo Radio media_player entity."""
+
 from __future__ import annotations
 
 from homeassistant.components.logbook import (
@@ -112,7 +113,8 @@ class GensokyoRadioMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
 
     @property
     def media_duration(self) -> int | None:
-        return self._songtimes.get("DURATION")
+        duration = self._songtimes.get("DURATION")
+        return duration if duration is not None else 60
 
     @property
     def media_position(self) -> int | None:
