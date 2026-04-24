@@ -11,8 +11,8 @@ DEFAULT_STREAM_URL = "https://stream.gensokyoradio.net/1/"
 # Seconds added to SONGTIMES.REMAINING before next poll
 UPDATE_DELAY_AFTER_SONG = 2
 
-# Retry delay on API error (seconds)
-ERROR_RETRY_DELAY = 30
+# Retry delays on API error (seconds). Backoff: 5s, 10s, 15s, then 30s onward.
+ERROR_RETRY_DELAYS = (5, 10, 15, 30)
 
 # Request timeout (seconds)
 REQUEST_TIMEOUT = 10

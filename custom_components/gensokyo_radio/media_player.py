@@ -147,21 +147,32 @@ class GensokyoRadioMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
     # ------------------------------------------------------------------
 
     @property
+    def _data(self) -> dict:
+        """Return the last payload, or empty if the last fetch failed.
+
+        We deliberately drop stale data on failure — better to show nothing
+        than a track that may no longer be playing.
+        """
+        if not self.coordinator.last_update_success:
+            return {}
+        return self.coordinator.data or {}
+
+    @property
     def _songinfo(self) -> dict:
-        return (self.coordinator.data or {}).get("SONGINFO", {})
+        return self._data.get("SONGINFO", {})
 
     @property
     def _songtimes(self) -> dict:
-        return (self.coordinator.data or {}).get("SONGTIMES", {})
+        return self._data.get("SONGTIMES", {})
 
     @property
     def _songdata(self) -> dict:
-        return (self.coordinator.data or {}).get("SONGDATA", {})
+        return self._data.get("SONGDATA", {})
 
     @property
     def _misc(self) -> dict:
-        return (self.coordinator.data or {}).get("MISC", {})
+        return self._data.get("MISC", {})
 
     @property
     def _serverinfo(self) -> dict:
-        return (self.coordinator.data or {}).get("SERVERINFO", {})
+        return self._data.get("SERVERINFO", {})
